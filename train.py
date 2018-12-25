@@ -14,17 +14,16 @@ from torch import optim
 
 from eval import eval_net
 from unet import UNet
-from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch, read_image
+from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch, read_image, read_masks
 
 
 def train_net(net,
               epochs=5,
               batch_size=1,
-              lr=0.1,
+              lr=0.01,
               val_percent=0.05,
               save_cp=True,
-              gpu=False,
-              img_scale=0.5):
+              gpu=True):
 
         # Define directories
     dir_img = 'E:/Dataset/Dataset10k/images/training/'
@@ -46,7 +45,7 @@ def train_net(net,
 
     val_imgs = np.array([read_image(val_dir_img + i)
                          for i in val_images]).astype(np.float32)
-    val_true_masks = np.array([read_image(val_dir_mask + i)
+    val_true_masks = np.array([read_masks(val_dir_mask + i)
                                for i in val_masks])
     val = zip(val_imgs, val_true_masks)
 
@@ -83,7 +82,7 @@ def train_net(net,
 
             imgs = np.array([read_image(dir_img + i)
                              for i in imgs]).astype(np.float32)
-            true_masks = np.array([read_image(dir_mask + i)
+            true_masks = np.array([read_masks(dir_mask + i)
                                    for i in true_masks])
 
             imgs = torch.from_numpy(imgs)
@@ -96,9 +95,13 @@ def train_net(net,
                 true_masks = true_masks.cuda()
 
             masks_pred = net(imgs)
+            print(masks_pred.size())
+            
             masks_probs_flat = masks_pred.view(-1)
-
+            print(masks_probs_flat.size())
+            
             true_masks_flat = true_masks.view(-1)
+            print(true_masks_flat.size())
 
             loss = criterion(masks_probs_flat, true_masks_flat)
             epoch_loss += loss.item()
@@ -146,7 +149,7 @@ if __name__ == '__main__':
     args = get_args()
 
     # Define model/U-Net
-    net = UNet(n_channels=3, n_classes=18)
+    net = UNet(n_channels=3, n_classes=3)
 
     # Load saved model if args.load is True
     if args.load:
@@ -166,8 +169,7 @@ if __name__ == '__main__':
                   epochs=args.epochs,
                   batch_size=args.batchsize,
                   lr=args.lr,
-                  gpu=args.gpu,
-                  img_scale=args.scale)
+                  gpu=args.gpu)
 
         # Show total learning time
         print("Learning time:", time.time()-start, "seconds")

@@ -1,6 +1,8 @@
 import random
 import numpy as np
 import cv2
+import scipy.misc as misc
+from tqdm import tqdm
 
 
 def get_square(img, pos):
@@ -23,7 +25,12 @@ def hwc_to_chw(img):
 def read_image(img):
     img = cv2.imread(img)
     img = cv2.resize(img, (224, 224))
-    print(img.size)
+    return hwc_to_chw(img)
+    
+    
+def read_masks(img):
+    img = cv2.imread(img)
+    img = cv2.resize(img, (224, 224))
     return hwc_to_chw(img)
 
 
