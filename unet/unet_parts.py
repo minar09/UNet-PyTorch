@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+# Two consecutive convolution layers with batch norm
 class double_conv(nn.Module):
     '''(conv => BN => ReLU) * 2'''
 
@@ -24,6 +25,7 @@ class double_conv(nn.Module):
         return x
 
 
+# Two conv layers
 class inconv(nn.Module):
     def __init__(self, in_ch, out_ch):
         super(inconv, self).__init__()
@@ -34,6 +36,7 @@ class inconv(nn.Module):
         return x
 
 
+# Downsampling/ MaxPooling, followed by two conv layers
 class down(nn.Module):
     def __init__(self, in_ch, out_ch):
         super(down, self).__init__()
@@ -47,8 +50,9 @@ class down(nn.Module):
         return x
 
 
+# Upsampling/ Unpooling/ Deconvolution/ Transpose Convolution, followed by two conv layers
 class up(nn.Module):
-    def __init__(self, in_ch, out_ch, bilinear=True):
+    def __init__(self, in_ch, out_ch, bilinear=False):
         super(up, self).__init__()
 
         #  would be a nice idea if the upsampling could be learned too,

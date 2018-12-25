@@ -8,15 +8,16 @@ from .unet_parts import *
 class UNet(nn.Module):
     def __init__(self, n_channels, n_classes):
         super(UNet, self).__init__()
-        self.inc = inconv(n_channels, 64)
-        self.down1 = down(64, 128)
-        self.down2 = down(128, 256)
-        self.down3 = down(256, 512)
-        self.down4 = down(512, 512)
-        self.up1 = up(1024, 256)
-        self.up2 = up(512, 128)
-        self.up3 = up(256, 64)
-        self.up4 = up(128, 64)
+        self.inc = inconv(n_channels, 64)    # First step of Contracting
+        self.down1 = down(64, 128)    # Second step of Contracting
+        self.down2 = down(128, 256)    # Third step of Contracting
+        self.down3 = down(256, 512)    # Fourth step of Contracting
+        self.down4 = down(512, 512)    # Bottleneck of U-Net
+        self.up1 = up(1024, 256)    # First step of Expanding
+        self.up2 = up(512, 128)    # Second step of Expanding
+        self.up3 = up(256, 64)    # Third step of Expanding
+        self.up4 = up(128, 64)    # Fourth step of Expanding
+        # Output Conv layer with 1*1 filter
         self.outc = outconv(64, n_classes)
 
     def forward(self, x):
@@ -30,4 +31,5 @@ class UNet(nn.Module):
         x = self.up3(x, x2)
         x = self.up4(x, x1)
         x = self.outc(x)
-        return F.sigmoid(x)
+        # return F.sigmoid(x)
+        return torch.sigmoid(x)

@@ -3,6 +3,9 @@ import os
 from optparse import OptionParser
 import numpy as np
 import random
+import time
+import os
+import cv2
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -11,7 +14,7 @@ from torch import optim
 
 from eval import eval_net
 from unet import UNet
-from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
+from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch, read_image
 
 
 def train_net(net,
@@ -23,23 +26,29 @@ def train_net(net,
               gpu=False,
               img_scale=0.5):
 
+        # Define directories
     dir_img = 'E:/Dataset/Dataset10k/images/training/'
     dir_mask = 'E:/Dataset/Dataset10k/annotations/training/'
-	
+
     val_dir_img = 'E:/Dataset/Dataset10k/images/validation/'
     val_dir_mask = 'E:/Dataset/Dataset10k/annotations/validation/'
-	
+
     dir_checkpoint = 'checkpoints/'
 
-    ids = get_ids(dir_img)
-    ids = split_ids(ids)
-	
-    val_ids = get_ids(val_dir_img)
-    val_ids = split_ids(val_ids)
+    # Get list of images and annotations
+    train_images = os.listdir(dir_img)
+    train_masks = os.listdir(dir_mask)
+    train_size = len(train_images)
 
-    #iddataset = split_train_val(ids, val_percent)
-	iddataset = random.shuffle(ids)
-	idvaldataset = random.shuffle(val_ids)
+    val_images = os.listdir(val_dir_img)
+    val_masks = os.listdir(val_dir_mask)
+    val_size = len(val_images)
+
+    val_imgs = np.array([read_image(val_dir_img + i)
+                         for i in val_images]).astype(np.float32)
+    val_true_masks = np.array([read_image(val_dir_mask + i)
+                               for i in val_masks])
+    val = zip(val_imgs, val_true_masks)
 
     print('''
     Starting training:
@@ -50,11 +59,10 @@ def train_net(net,
         Validation size: {}
         Checkpoints: {}
         CUDA: {}
-    '''.format(epochs, batch_size, lr, len(iddataset),
-               len(idvaldataset), str(save_cp), str(gpu)))
+    '''.format(epochs, batch_size, lr, train_size,
+               val_size, str(save_cp), str(gpu)))
 
-    N_train = len(iddataset)
-
+    # Define optimizer and loss functions
     optimizer = optim.SGD(net.parameters(),
                           lr=lr,
                           momentum=0.9,
@@ -62,24 +70,26 @@ def train_net(net,
 
     criterion = nn.BCELoss()
 
+    # Start training epochs
     for epoch in range(epochs):
         print('Starting epoch {}/{}.'.format(epoch + 1, epochs))
         net.train()
 
-        # reset the generators
-        #train = get_imgs_and_masks(iddataset['train'], dir_img, dir_mask, img_scale)
-        #val = get_imgs_and_masks(iddataset['val'], dir_img, dir_mask, img_scale)
-        train = get_imgs_and_masks(iddataset, dir_img, dir_mask, img_scale)
-        val = get_imgs_and_masks(idvaldataset, val_dir_img, val_dir_mask, img_scale)
-
         epoch_loss = 0
 
-        for i, b in enumerate(batch(train, batch_size)):
-            imgs = np.array([i[0] for i in b]).astype(np.float32)
-            true_masks = np.array([i[1] for i in b])
+        for i in range(round(train_size // batch_size)):
+            imgs = train_images[i:i+batch_size]
+            true_masks = train_masks[i:i+batch_size]
+
+            imgs = np.array([read_image(dir_img + i)
+                             for i in imgs]).astype(np.float32)
+            true_masks = np.array([read_image(dir_mask + i)
+                                   for i in true_masks])
 
             imgs = torch.from_numpy(imgs)
             true_masks = torch.from_numpy(true_masks)
+
+            print(imgs.size(), true_masks.size())
 
             if gpu:
                 imgs = imgs.cuda()
@@ -93,14 +103,13 @@ def train_net(net,
             loss = criterion(masks_probs_flat, true_masks_flat)
             epoch_loss += loss.item()
 
-            #print('{0:.4f} --- loss: {1:.6f}'.format(i * batch_size / N_train, loss.item()))
             print('{0:.4f} --- loss: {1:.6f}'.format(i * batch_size, loss.item()))
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        print('Epoch finished ! Loss: {}'.format(epoch_loss / i))
+        print('Epoch finished ! Loss: {}'.format(np.mean(epoch_loss)))
 
         if 1:
             val_dice = eval_net(net, val, gpu)
@@ -114,14 +123,14 @@ def train_net(net,
 
 def get_args():
     parser = OptionParser()
-    parser.add_option('-e', '--epochs', dest='epochs', default=5, type='int',
+    parser.add_option('-e', '--epochs', dest='epochs', default=30, type='int',
                       help='number of epochs')
-    parser.add_option('-b', '--batch-size', dest='batchsize', default=32,
+    parser.add_option('-b', '--batch-size', dest='batchsize', default=4,
                       type='int', help='batch size')
     parser.add_option('-l', '--learning-rate', dest='lr', default=0.01,
                       type='float', help='learning rate')
     parser.add_option('-g', '--gpu', action='store_true', dest='gpu',
-                      default=0, help='use cuda')
+                      default=True, help='use cuda')
     parser.add_option('-c', '--load', dest='load',
                       default=False, help='load file model')
     parser.add_option('-s', '--scale', dest='scale', type='float',
@@ -132,28 +141,44 @@ def get_args():
 
 
 if __name__ == '__main__':
+
+        # Get arguments/parameters
     args = get_args()
 
+    # Define model/U-Net
     net = UNet(n_channels=3, n_classes=18)
 
+    # Load saved model if args.load is True
     if args.load:
         net.load_state_dict(torch.load(args.load))
         print('Model loaded from {}'.format(args.load))
 
+        # Run model on GPU if args.gpu is True
     if args.gpu:
         net.cuda()
         # cudnn.benchmark = True # faster convolutions, but more memory
 
     try:
+        start = time.time()    # Start time of training
+
+        # Train the model
         train_net(net=net,
                   epochs=args.epochs,
                   batch_size=args.batchsize,
                   lr=args.lr,
                   gpu=args.gpu,
                   img_scale=args.scale)
+
+        # Show total learning time
+        print("Learning time:", time.time()-start, "seconds")
+
     except KeyboardInterrupt:
+
+            # Save model if training interrupted
         torch.save(net.state_dict(), 'INTERRUPTED.pth')
         print('Saved interrupt')
+
+        # Exit training
         try:
             sys.exit(0)
         except SystemExit:

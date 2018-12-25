@@ -12,7 +12,13 @@ from .utils import resize_and_crop, get_square, normalize, hwc_to_chw
 
 def get_ids(dir):
     """Returns a list of the ids in the directory"""
-    return (f[:-4] for f in os.listdir(dir))
+    ids = []
+    for f in os.listdir(dir):
+        f = f[:-4]
+        f = f.split("_")[1]
+        ids.append(int(f))
+
+    return ids
 
 
 def split_ids(ids, n=2):
@@ -36,7 +42,7 @@ def get_imgs_and_masks(ids, dir_img, dir_mask, scale):
     imgs_switched = map(hwc_to_chw, imgs)
     imgs_normalized = map(normalize, imgs_switched)
 
-    #masks = to_cropped_imgs(ids, dir_mask, '_mask.gif', scale)
+    # masks = to_cropped_imgs(ids, dir_mask, '_mask.gif', scale)
     masks = to_cropped_imgs(ids, dir_mask, '.png', scale)
 
     return zip(imgs_normalized, masks)
@@ -44,6 +50,6 @@ def get_imgs_and_masks(ids, dir_img, dir_mask, scale):
 
 def get_full_img_and_mask(id, dir_img, dir_mask):
     im = Image.open(dir_img + id + '.jpg')
-    #mask = Image.open(dir_mask + id + '_mask.gif')
+    # mask = Image.open(dir_mask + id + '_mask.gif')
     mask = Image.open(dir_mask + id + '.png')
     return np.array(im), np.array(mask)

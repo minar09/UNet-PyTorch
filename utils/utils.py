@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import cv2
 
 
 def get_square(img, pos):
@@ -17,6 +18,13 @@ def split_img_into_squares(img):
 
 def hwc_to_chw(img):
     return np.transpose(img, axes=[2, 0, 1])
+
+
+def read_image(img):
+    img = cv2.imread(img)
+    img = cv2.resize(img, (224, 224))
+    print(img.size)
+    return hwc_to_chw(img)
 
 
 def resize_and_crop(pilimg, scale=0.5, final_height=None):
