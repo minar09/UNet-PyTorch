@@ -1,6 +1,6 @@
 # Pytorch-UNet
 Customized implementation of the [U-Net](https://arxiv.org/pdf/1505.04597.pdf) in Pytorch for Kaggle's [Carvana Image Masking Challenge](https://www.kaggle.com/c/carvana-image-masking-challenge) from a high definition image. This was used with only one output class but it can be scaled easily.
-https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/u-net-architecture.png
+-- [U-Net architecture](https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/u-net-architecture.png) 
 
 ## Usage
 
